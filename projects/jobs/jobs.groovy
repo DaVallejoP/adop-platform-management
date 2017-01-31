@@ -23,13 +23,52 @@ readFileFromWorkspace("${WORKSPACE}/cartridges.txt").eachLine { line ->
 
 // Jobs
 def loadCartridgeJob = freeStyleJob(cartridgeManagementFolderName + "/Load_Cartridge")
-def loadCartridgeCollectionJob = workflowJob(cartridgeManagementFolderName + "/Load_Cartridge_Collection")
-
-
+def loadCartridgeCollectionJob = workflowJob(cartridgeManagementFolderName + "/Load_Cartridge_Collection")/var/jenkins_home/userContent
 // Setup Load_Cartridge
 loadCartridgeJob.with{
     parameters{
-        choiceParam('CARTRIDGE_CLONE_URL', cartridge_list, 'Cartridge URL to load')
+        extensibleChoiceParameterDefinition {
+          name('CARTRIDGE_CLONE_URL')
+          choiceListProvider {
+            systemGroovyChoiceListProvider {
+              scriptText('''
+              try {
+                def html = "https://raw.githubusercontent.com/Accenture/adop-platform-management/master/cartridges.txt".toURL().text
+
+                def catridges_list = []
+
+                html.split('\n').each {
+                    catridges_list.add("${it}")
+                };
+
+                def cartridges_file = new File("/var/jenkins_home/userContent/cartridges.txt")
+                cartridges_file.write html
+
+                return catridges_list;
+              }
+              catch (Exception e) {
+
+                try {
+                  def cartridges_list = []
+                  def cartridges_file = new File("/var/jenkins_home/userContent/cartridges.txt")
+                  cartridges_file.readLines().each {
+                      cartridges_list.add("${it}");
+                  }
+                  return cartridges_list;
+                }
+                catch (Exception a) {
+                  return [ a ];
+                }
+
+              }
+''')
+              defaultChoice('Top')
+              usePredefinedVariables(false)
+            }
+          }
+          editable(true)
+          description('Cartridge URL to load')
+          }
         stringParam('CARTRIDGE_FOLDER', '', 'The folder within the project namespace where your cartridge will be loaded into.')
         stringParam('FOLDER_DISPLAY_NAME', '', 'Display name of the folder where the cartridge is loaded.')
         stringParam('FOLDER_DESCRIPTION', '', 'Description of the folder where the cartridge is loaded.')
