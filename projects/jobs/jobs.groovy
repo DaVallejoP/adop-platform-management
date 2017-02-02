@@ -23,7 +23,7 @@ readFileFromWorkspace("${WORKSPACE}/cartridges.txt").eachLine { line ->
 
 // Jobs
 def loadCartridgeJob = freeStyleJob(cartridgeManagementFolderName + "/Load_Cartridge")
-def loadCartridgeCollectionJob = workflowJob(cartridgeManagementFolderName + "/Load_Cartridge_Collection")/var/jenkins_home/userContent
+def loadCartridgeCollectionJob = workflowJob(cartridgeManagementFolderName + "/Load_Cartridge_Collection")
 // Setup Load_Cartridge
 loadCartridgeJob.with{
     parameters{
