@@ -37,7 +37,7 @@ loadCartridgeJob.with{
 
                 def catridges_list = []
 
-                html.split('\n').each {
+                html.split('\\n').each {
                     catridges_list.add("${it}")
                 };
 
