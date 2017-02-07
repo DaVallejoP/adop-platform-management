@@ -12,15 +12,6 @@ def projectFolder = folder(projectFolderName)
 def cartridgeManagementFolderName= projectFolderName + "/Cartridge_Management"
 def cartridgeManagementFolder = folder(cartridgeManagementFolderName) { displayName('Cartridge Management') }
 
-// Cartridge List
-def cartridge_list = []
-readFileFromWorkspace("${WORKSPACE}/cartridges.txt").eachLine { line ->
-    cartridge_repo_name = line.tokenize("/").last()
-    local_cartridge_url = cartridgeBaseUrl + "/" + cartridge_repo_name
-    cartridge_list << local_cartridge_url
-}
-
-
 // Jobs
 def loadCartridgeJob = freeStyleJob(cartridgeManagementFolderName + "/Load_Cartridge")
 def loadCartridgeCollectionJob = workflowJob(cartridgeManagementFolderName + "/Load_Cartridge_Collection")
@@ -32,35 +23,48 @@ loadCartridgeJob.with{
           choiceListProvider {
             systemGroovyChoiceListProvider {
               scriptText('''
-              try {
-                def html = "https://raw.githubusercontent.com/Accenture/adop-platform-management/master/cartridges.txt".toURL().text
+              @Grab('org.yaml:snakeyaml:1.17')
+              import org.yaml.snakeyaml.Yaml
+              import org.yaml.snakeyaml.parser.ParserException
+              import jenkins.model.*
 
-                def catridges_list = []
+              nodes = Jenkins.instance.globalNodeProperties
+              nodes.getAll(hudson.slaves.EnvironmentVariablesNodeProperty.class)
+              envVars = nodes[0].envVars
 
-                html.split('\\n').each {
-                    catridges_list.add("${it}")
-                };
+              def URLS = envVars['CARTRIDGE_SOURCES'];
 
-                def cartridges_file = new File("/var/jenkins_home/userContent/cartridges.txt")
-                cartridges_file.write html
+              def cartridge_urls = [];
 
-                return catridges_list;
-              }
-              catch (Exception e) {
+              URLS.split(';').each{ source_url ->
 
                 try {
-                  def cartridges_list = []
-                  def cartridges_file = new File("/var/jenkins_home/userContent/cartridges.txt")
-                  cartridges_file.readLines().each {
-                      cartridges_list.add("${it}");
-                  }
-                  return cartridges_list;
-                }
-                catch (Exception a) {
-                  return [ a ];
-                }
+                  def html = source_url.toURL().text;
 
+                  Yaml parser = new Yaml();
+                  LinkedHashMap yaml = parser.load(html);
+
+                  yaml.each{ key, cartridges ->
+                    cartridges.each { cartridge ->
+                      cartridge_urls.add(cartridge.url)
+                    }
+                  }
+                }
+                catch (UnknownHostException e) {
+                  cartridge_urls.add("[ERROR] Provided URL was not found: ${source_url}");
+                  println "[ERROR] Provided URL was not found: ${source_url}";
+                }
+                catch (ParserException e) {
+                  cartridge_urls.add("[ERROR] Provided URL has invalid YAML: ${source_url}");
+                  println "[ERROR] Provided URL has invalid YAML: ${source_url}";
+                }
+                catch (Exception e) {
+                  cartridge_urls.add("[ERROR] Unknown error while processing: ${source_url}");
+                  println "[ERROR] Unknown error while processing: ${source_url}";
+                }
               }
+
+              return cartridge_urls;
 ''')
               defaultChoice('Top')
               usePredefinedVariables(false)
