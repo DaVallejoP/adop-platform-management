@@ -35,8 +35,12 @@ loadCartridgeJob.with{
               def URLS = envVars['CARTRIDGE_SOURCES'];
 
               if (URLS == null) {
-                return ['[ERROR] CARTRIDGE_SOURCES Jenkins environment variable has not been set'];
                 println "[ERROR] CARTRIDGE_SOURCES Jenkins environment variable has not been set";
+                return ['[ERROR] CARTRIDGE_SOURCES Jenkins environment variable has not been set'];
+              }
+              if (URLS.length() < 11) {
+                println "[ERROR] CARTRIDGE_SOURCES Jenkins environment variable does not seem to contain valid URLs";
+                return ['[ERROR] CARTRIDGE_SOURCES Jenkins environment variable does not seem to contain valid URLs'];
               }
 
               def cartridge_urls = [];
