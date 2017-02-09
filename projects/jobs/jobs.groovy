@@ -36,11 +36,11 @@ loadCartridgeJob.with{
 
               if (URLS == null) {
                 println "[ERROR] CARTRIDGE_SOURCES Jenkins environment variable has not been set";
-                return ['[ERROR] CARTRIDGE_SOURCES Jenkins environment variable has not been set'];
+                return ['Type the cartridge URL (or add CARTRIDGE_SOURCES as a Jenkins environment variable if you wish to see a list here)'];
               }
               if (URLS.length() < 11) {
                 println "[ERROR] CARTRIDGE_SOURCES Jenkins environment variable does not seem to contain valid URLs";
-                return ['[ERROR] CARTRIDGE_SOURCES Jenkins environment variable does not seem to contain valid URLs'];
+                return ['Type the cartridge URL (the CARTRIDGE_SOURCES Jenkins environment variable does not seem valid)'];
               }
 
               def cartridge_urls = [];
@@ -53,10 +53,8 @@ loadCartridgeJob.with{
                   Yaml parser = new Yaml();
                   LinkedHashMap yaml = parser.load(html);
 
-                  yaml.each{ key, cartridges ->
-                    cartridges.each { cartridge ->
-                      cartridge_urls.add(cartridge.url)
-                    }
+                  yaml.each{ key, cartridge ->
+                    cartridge_urls.add(cartridge.url)
                   }
                 }
                 catch (UnknownHostException e) {
