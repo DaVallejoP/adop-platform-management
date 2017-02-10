@@ -17,7 +17,7 @@ loadPlatformExtensionJob.with{
       stringParam("GIT_REF","master","The reference to checkout from git repo of Platform Extension. It could be a branch name or a tag name. Eg : master, 0.0.1 etc")
       credentialsParam("CREDENTIALS"){
         type('com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl')
-        description('Credentials needed by the platform extent')
+        description('Credentials needed by the platform extention')
       }
     }
     scm{
