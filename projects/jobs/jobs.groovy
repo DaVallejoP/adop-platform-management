@@ -350,7 +350,7 @@ loadCartridgeCollectionJob.with{
             'url' : url,
             'desc' : desc,
             'folder' : folder,
-            'display_name' : display_name
+            'display_name' : display_name,
             'downstream_folder' : downstream_folder
         ]
     }
