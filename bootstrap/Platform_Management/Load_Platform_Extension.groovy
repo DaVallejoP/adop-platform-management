@@ -15,7 +15,7 @@ loadPlatformExtensionJob.with{
     parameters{
       stringParam("GIT_URL",'',"The URL of the git repo for Platform Extension")
       stringParam("GIT_REF","master","The reference to checkout from git repo of Platform Extension. It could be a branch name or a tag name. Eg : master, 0.0.1 etc")
-      credentialsParam("AWS_CREDENTIALS"){
+      credentialsParam("CREDENTIALS"){
         type('com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl')
         description('AWS access key and secret key for your account')
       }
@@ -36,7 +36,7 @@ loadPlatformExtensionJob.with{
       maskPasswords()
       sshAgent("adop-jenkins-master")
       credentialsBinding {
-        usernamePassword("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", '${AWS_CREDENTIALS}')
+        usernamePassword("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", '${CREDENTIALS}')
       }
     }
     steps {
