@@ -83,6 +83,7 @@ loadCartridgeJob.with{
         stringParam('CARTRIDGE_FOLDER', '', 'The folder within the project namespace where your cartridge will be loaded into.')
         stringParam('FOLDER_DISPLAY_NAME', '', 'Display name of the folder where the cartridge is loaded.')
         stringParam('FOLDER_DESCRIPTION', '', 'Description of the folder where the cartridge is loaded.')
+        stringParam('DOWNSTREAM_FOLDER', 'null', 'Optional parameter to support the ADOP Pipeine Builder.')
         booleanParam('ENABLE_CODE_REVIEW', false, 'Enables Gerrit Code Reviewing for the selected cartridge')
         booleanParam('OVERWRITE_REPOS', false, 'If ticked, existing code repositories (previously loaded by the cartridge) will be overwritten. For first time cartridge runs, this property is redundant and will perform the same behavior regardless.')
     }
@@ -238,6 +239,7 @@ fi
                     env('PROJECT_NAME',projectFolderName + '/${CARTRIDGE_FOLDER}')
                     env('FOLDER_DISPLAY_NAME','${FOLDER_DISPLAY_NAME}')
                     env('FOLDER_DESCRIPTION','${FOLDER_DESCRIPTION}')
+                    env('DOWNSTREAM_FOLDER','${DOWNSTREAM_FOLDER}')
                 }
                 dsl {
                     text('''// Creating folder to house the cartridge...
@@ -316,8 +318,11 @@ loadCartridgeCollectionJob.with{
 
         println("Loading cartridge inside folder: " + cartridge.folder)
         println("Cartridge URL: " + cartridge.url)
+        if (cartridge.down_stream != null) {
+            println("Cartridge Downstream Job: " + cartridge.downstream_folder)
+        }
 
-        build job: projectWorkspace+'/Cartridge_Management/Load_Cartridge', parameters: [[$class: 'StringParameterValue', name: 'CARTRIDGE_FOLDER', value: cartridge.folder], [$class: 'StringParameterValue', name: 'FOLDER_DISPLAY_NAME', value: cartridge.display_name], [$class: 'StringParameterValue', name: 'FOLDER_DESCRIPTION', value: cartridge.desc], [$class: 'StringParameterValue', name: 'CARTRIDGE_CLONE_URL', value: cartridge.url]]
+        build job: projectWorkspace+'/Cartridge_Management/Load_Cartridge', parameters: [[$class: 'StringParameterValue', name: 'CARTRIDGE_FOLDER', value: cartridge.folder], [$class: 'StringParameterValue', name: 'FOLDER_DISPLAY_NAME', value: cartridge.display_name], [$class: 'StringParameterValue', name: 'FOLDER_DESCRIPTION', value: cartridge.desc], [$class: 'StringParameterValue', name: 'CARTRIDGE_CLONE_URL', value: cartridge.url], [$class: 'StringParameterValue', name: 'DOWNSTREAM_FOLDER', value: cartridge.downstream_folder]]
     }
 
 }
@@ -334,12 +339,17 @@ loadCartridgeCollectionJob.with{
         String desc = data.cartridges[i].folder.description
         String folder = data.cartridges[i].folder.name
         String display_name = data.cartridges[i].folder.display_name
+        String downstream_folder = data.cartridges[i].cartridge.downstream_folder
+        if (downstream_folder == null) {
+            downstream_folder = "None"
+        }
 
         cartridges[i] = [
             'url' : url,
             'desc' : desc,
             'folder' : folder,
-            'display_name' : display_name
+            'display_name' : display_name,
+            'downstream_folder' : downstream_folder
         ]
     }
 
