@@ -339,7 +339,7 @@ loadCartridgeCollectionJob.with{
         String desc = data.cartridges[i].folder.description
         String folder = data.cartridges[i].folder.name
         String display_name = data.cartridges[i].folder.display_name
-        String downstream_folder = null
+        String downstream_folder = "null"
         try {
             downstream_folder = data.cartridges[i].cartridge.downstream_folder
         } catch(Exception e1) {
