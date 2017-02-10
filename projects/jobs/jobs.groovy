@@ -83,7 +83,7 @@ loadCartridgeJob.with{
         stringParam('CARTRIDGE_FOLDER', '', 'The folder within the project namespace where your cartridge will be loaded into.')
         stringParam('FOLDER_DISPLAY_NAME', '', 'Display name of the folder where the cartridge is loaded.')
         stringParam('FOLDER_DESCRIPTION', '', 'Description of the folder where the cartridge is loaded.')
-        stringParam('DOWNSTREAM_FOLDER', 'null', 'Optional parameter to support the ADOP Pipeine Builder.')
+        stringParam('DOWNSTREAM_FOLDER', 'None', 'Optional parameter to support the ADOP Pipeine Builder.')
         booleanParam('ENABLE_CODE_REVIEW', false, 'Enables Gerrit Code Reviewing for the selected cartridge')
         booleanParam('OVERWRITE_REPOS', false, 'If ticked, existing code repositories (previously loaded by the cartridge) will be overwritten. For first time cartridge runs, this property is redundant and will perform the same behavior regardless.')
     }
