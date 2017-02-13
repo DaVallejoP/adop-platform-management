@@ -18,6 +18,8 @@ loadPlatformExtensionJob.with{
       credentialsParam("CREDENTIALS"){
         type('com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl')
         description('Credentials needed by the platform extention')
+        required()
+        defaultValue('adop-ldap-admin')
       }
     }
     scm{
@@ -175,7 +177,7 @@ echo "This job loads the platform extension ${GIT_URL}"
          if [ -f ${WORKSPACE}/service/${PLATFORM_EXTENSION_TYPE}/docker-compose.yml ] ; then
              SERVICE_NAME="Docker-Service-Extension-${PLATFORM_EXTENSION_NAME}-${BUILD_NUMBER}"
  
-             if [ ! "${CREDENTIALS}" = "adop-default" ]; then
+             if [ ! "${CREDENTIALS}" = "adop-ldap-admin" ]; then
                  DOCKER_PRIVATE_REPO=$(cat ${WORKSPACE}/service/${PLATFORM_EXTENSION_TYPE}/docker-compose.yml | grep image | awk '{print $2}' | cut -d/ -f1 | head -1)
                  docker login -u ${USERNAME} -p ${PASSWORD} -e example@example.com ${DOCKER_PRIVATE_REPO}
              fi
