@@ -34,6 +34,7 @@ loadPlatformExtensionJob.with{
       preBuildCleanup()
       injectPasswords()
       maskPasswords()
+      environmentVariables()
       sshAgent("adop-jenkins-master")
       credentialsBinding {
         usernamePassword("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", '${AWS_CREDENTIALS}')
@@ -180,10 +181,11 @@ if [ -d service/ ] ; then
         if [ -f ${WORKSPACE}/service/${PLATFORM_EXTENSION_TYPE}/docker-compose.yml ] ; then
             SERVICE_NAME="Docker-Service-Extension-${PLATFORM_EXTENSION_NAME}-${BUILD_NUMBER}"
 
-            if [ ! "${CREDENTIALS}" = "adop-default" ]; then
-                DOCKER_PRIVATE_REPO=$(cat ${WORKSPACE}/service/${PLATFORM_EXTENSION_TYPE}/docker-compose.yml | grep image | awk '{print $2}' | cut -d/ -f1 | head -1)
-                docker login -u ${USERNAME} -p ${PASSWORD} -e example@example.com ${DOCKER_PRIVATE_REPO}
-            fi
+            #Use enviroment variables
+            #if [ ! "${CREDENTIALS}" = "adop-default" ]; then
+            #    DOCKER_PRIVATE_REPO=$(cat ${WORKSPACE}/service/${PLATFORM_EXTENSION_TYPE}/docker-compose.yml | grep image | awk '{print $2}' | cut -d/ -f1 | head -1)
+            #    docker login -u ${USERNAME} -p ${PASSWORD} -e example@example.com ${DOCKER_PRIVATE_REPO}
+            #fi
 
             docker-compose -f ${WORKSPACE}/service/${PLATFORM_EXTENSION_TYPE}/docker-compose.yml -p ${SERVICE_NAME} up -d
         else
@@ -232,6 +234,14 @@ done
 if [ "${RELOAD_PROXY}" = true ] ; then
     docker exec proxy /usr/sbin/nginx -s reload
 fi
+
+if [ -f  ${WORKSPACE}/service_ext/jenkins/plugins.txt ]; then
+    echo "Adding Jenkins plugins"
+    docker cp service_ext/jenkins/plugins.txt jenkins:/usr/share/jenkins/plugins.txt
+    docker exec jenkins /usr/local/bin/plugins.sh /usr/share/jenkins/plugins.txt
+    docker exec  jenkins curl -X POST -u ${INITIAL_ADMIN_USER}:${INITIAL_ADMIN_PASSWORD} http://localhost:8080/jenkins/restart
+fi
+
 
 echo "INFO : Platform extension ${PLATFORM_EXTENSION_NAME} loaded."
 echo "INFO : Service extension unique ID: ${SERVICE_NAME}"
