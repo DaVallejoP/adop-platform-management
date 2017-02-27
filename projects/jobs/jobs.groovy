@@ -12,24 +12,67 @@ def projectFolder = folder(projectFolderName)
 def cartridgeManagementFolderName= projectFolderName + "/Cartridge_Management"
 def cartridgeManagementFolder = folder(cartridgeManagementFolderName) { displayName('Cartridge Management') }
 
-// Cartridge List
-def cartridge_list = []
-readFileFromWorkspace("${WORKSPACE}/cartridges.txt").eachLine { line ->
-    cartridge_repo_name = line.tokenize("/").last()
-    local_cartridge_url = cartridgeBaseUrl + "/" + cartridge_repo_name
-    cartridge_list << local_cartridge_url
-}
-
-
 // Jobs
 def loadCartridgeJob = freeStyleJob(cartridgeManagementFolderName + "/Load_Cartridge")
 def loadCartridgeCollectionJob = workflowJob(cartridgeManagementFolderName + "/Load_Cartridge_Collection")
-
-
 // Setup Load_Cartridge
 loadCartridgeJob.with{
     parameters{
-        choiceParam('CARTRIDGE_CLONE_URL', cartridge_list, 'Cartridge URL to load')
+        extensibleChoiceParameterDefinition {
+          name('CARTRIDGE_CLONE_URL')
+          choiceListProvider {
+            systemGroovyChoiceListProvider {
+              scriptText('''
+              import jenkins.model.*
+
+              nodes = Jenkins.instance.globalNodeProperties
+              nodes.getAll(hudson.slaves.EnvironmentVariablesNodeProperty.class)
+              envVars = nodes[0].envVars
+
+              def URLS = envVars['CARTRIDGE_SOURCES'];
+
+              if (URLS == null) {
+                println "[ERROR] CARTRIDGE_SOURCES Jenkins environment variable has not been set";
+                return ['Type the cartridge URL (or add CARTRIDGE_SOURCES as a Jenkins environment variable if you wish to see a list here)'];
+              }
+              if (URLS.length() < 11) {
+                println "[ERROR] CARTRIDGE_SOURCES Jenkins environment variable does not seem to contain valid URLs";
+                return ['Type the cartridge URL (the CARTRIDGE_SOURCES Jenkins environment variable does not seem valid)'];
+              }
+
+              def cartridge_urls = [];
+
+              URLS.split(';').each{ source_url ->
+
+                try {
+                  def html = source_url.toURL().text;
+
+                  html.eachLine { line ->
+                    if (line.contains("url:")) {
+                      def url = line.substring(line.indexOf("\\"") + 1, line.lastIndexOf("\\""))
+                      cartridge_urls.add(url)
+                    }
+                  }
+                }
+                catch (UnknownHostException e) {
+                  cartridge_urls.add("[ERROR] Provided URL was not found: ${source_url}");
+                  println "[ERROR] Provided URL was not found: ${source_url}";
+                }
+                catch (Exception e) {
+                  cartridge_urls.add("[ERROR] Unknown error while processing: ${source_url}");
+                  println "[ERROR] Unknown error while processing: ${source_url}";
+                }
+              }
+
+              return cartridge_urls;
+''')
+              defaultChoice('Top')
+              usePredefinedVariables(false)
+            }
+          }
+          editable(true)
+          description('Cartridge URL to load')
+          }
         stringParam('CARTRIDGE_FOLDER', '', 'The folder within the project namespace where your cartridge will be loaded into.')
         stringParam('FOLDER_DISPLAY_NAME', '', 'Display name of the folder where the cartridge is loaded.')
         stringParam('FOLDER_DESCRIPTION', '', 'Description of the folder where the cartridge is loaded.')
@@ -59,6 +102,8 @@ git clone ${CARTRIDGE_CLONE_URL} cartridge
 
 # Find the cartridge
 export CART_HOME=$(dirname $(find -name metadata.cartridge | head -1))
+
+echo "CART_HOME=${CART_HOME}" > ${WORKSPACE}/carthome.properties
 
 # Check if the user has enabled Gerrit Code reviewing
 if [ "$ENABLE_CODE_REVIEW" == true ]; then
@@ -102,7 +147,7 @@ while read repo_url; do
         else
             echo "Repository already exists, skipping create: ${target_repo_name}"
         fi
-        
+
         # Populate repository
         git clone ssh://jenkins@gerrit:29418/"${target_repo_name}"
         cd "${repo_name}"
@@ -139,30 +184,42 @@ if [ -d ${WORKSPACE}/${CART_HOME}/jenkins/jobs ]; then
     fi
 fi
 ''')
-        systemGroovyCommand('''
-import jenkins.model.*
-import groovy.io.FileType
+        environmentVariables {
+          propertiesFile('${WORKSPACE}/carthome.properties')
+        }
+        systemGroovyCommand('''// XML LOAD
 
-def jenkinsInstace = Jenkins.instance
-def projectName = build.getEnvironment(listener).get('PROJECT_NAME')
-def mcfile = new FileNameFinder().getFileNames(build.getWorkspace().toString(), '**/metadata.cartridge')
-def xmlDir = new File(mcfile[0].substring(0, mcfile[0].lastIndexOf(File.separator))  + "/jenkins/jobs/xml")
+import jenkins.model.*;
+import groovy.io.FileType;
+import hudson.FilePath;
 
-def fileList = []
+def jenkinsInstace = Jenkins.instance;
+def projectName = build.getEnvironment(listener).get('PROJECT_NAME');
+def cartHome = build.getEnvironment(listener).get('CART_HOME');
+def workspace = build.workspace.toString();
+def cartridgeWorkspace = workspace + '/' + cartHome + '/jenkins/jobs/xml/';
+def channel = build.workspace.channel;
+FilePath filePath = new FilePath(channel, cartridgeWorkspace);
+List<FilePath> xmlFiles = filePath.list('**/*.xml');
 
-xmlDir.eachFileRecurse (FileType.FILES) { file ->
-    if(file.name.endsWith('.xml')) {
-        fileList << file
-    }
-}
-fileList.each {
-	String configPath = it.path
-  	File configFile = new File(configPath)
-    String configXml = configFile.text
-    ByteArrayInputStream xmlStream = new ByteArrayInputStream( configXml.getBytes() )
-    String jobName = configFile.getName().substring(0, configFile.getName().lastIndexOf('.'))
+xmlFiles.each {
+  File configFile = new File(it.toURI());
 
-    jenkinsInstace.getItem(projectName,jenkinsInstace).createProjectFromXML(jobName, xmlStream)
+  String configXml = it.readToString();
+
+  ByteArrayInputStream xmlStream = new ByteArrayInputStream(
+    configXml.getBytes());
+
+  String jobName = configFile.getName()
+  		.substring(0,
+                   configFile
+                   .getName()
+                   	.lastIndexOf('.'));
+
+  jenkinsInstace.getItem(projectName,jenkinsInstace)
+  	.createProjectFromXML(jobName, xmlStream);
+
+  println '[INFO] - Imported XML job config: ' + it.toURI();
 }
 ''')
         conditionalSteps {
@@ -203,7 +260,7 @@ println("Creating folder: " + cartridgeFolderName + "...")
 
 def cartridgeFolder = folder(cartridgeFolderName) {
   displayName(FolderDisplayName)
-  description(FolderDescription)  
+  description(FolderDescription)
 }
                     ''')
                 }
@@ -249,26 +306,25 @@ loadCartridgeCollectionJob.with{
     sh("wget ${COLLECTION_URL} -O collection.json")
 
     println "Reading in values from file..."
-    Map data = parseJSON(readFile('collection.json'))
+    cartridges = parseJSON(readFile('collection.json'))
 
-    println(data);
+    println(cartridges);
     println "Obtained values locally...";
 
-    cartridgeCount = data.cartridges.size
+    cartridgeCount = cartridges.size
     println "Number of cartridges: ${cartridgeCount}"
 
     def projectWorkspace =  "''' + projectFolderName + '''"
     println "Project workspace: ${projectWorkspace}"
 
     // For loop iterating over the data map obtained from the provided JSON file
-    for ( i = 0 ; i < cartridgeCount ; i++ ) {
-        String folder = data.cartridges[i].folder.name
-        println("Loading cartridge inside folder: " + folder)
-        String url = data.cartridges[i].cartridge.url
-        println("Cartridge URL: " + url)
-        String display_name = data.cartridges[i].folder.display_name
-        String desc = data.cartridges[i].folder.description
-        build job: projectWorkspace+'/Cartridge_Management/Load_Cartridge', parameters: [[$class: 'StringParameterValue', name: 'CARTRIDGE_FOLDER', value: folder], [$class: 'StringParameterValue', name: 'FOLDER_DISPLAY_NAME', value: display_name], [$class: 'StringParameterValue', name: 'FOLDER_DESCRIPTION', value: desc], [$class: 'StringParameterValue', name: 'CARTRIDGE_CLONE_URL', value: url]]
+    for (int i = 0; i < cartridgeCount; i++) {
+        def cartridge = cartridges.get(i);
+
+        println("Loading cartridge inside folder: " + cartridge.folder)
+        println("Cartridge URL: " + cartridge.url)
+
+        build job: projectWorkspace+'/Cartridge_Management/Load_Cartridge', parameters: [[$class: 'StringParameterValue', name: 'CARTRIDGE_FOLDER', value: cartridge.folder], [$class: 'StringParameterValue', name: 'FOLDER_DISPLAY_NAME', value: cartridge.display_name], [$class: 'StringParameterValue', name: 'FOLDER_DESCRIPTION', value: cartridge.desc], [$class: 'StringParameterValue', name: 'CARTRIDGE_CLONE_URL', value: cartridge.url]]
     }
 
 }
@@ -278,7 +334,25 @@ loadCartridgeCollectionJob.with{
     def slurper = new groovy.json.JsonSlurper();
     Map data = slurper.parseText(text)
     slurper = null
-    return data
+
+    def cartridges = []
+    for ( i = 0 ; i < data.cartridges.size; i++ ) {
+        String url = data.cartridges[i].cartridge.url
+        String desc = data.cartridges[i].folder.description
+        String folder = data.cartridges[i].folder.name
+        String display_name = data.cartridges[i].folder.display_name
+
+        cartridges[i] = [
+            'url' : url,
+            'desc' : desc,
+            'folder' : folder,
+            'display_name' : display_name
+        ]
+    }
+
+    data = null
+
+    return cartridges
 }
             ''')
             sandbox()
