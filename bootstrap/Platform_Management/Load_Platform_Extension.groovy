@@ -239,7 +239,7 @@ if [ -f  ${WORKSPACE}/service_ext/jenkins/plugins.txt ]; then
     echo "Adding Jenkins plugins"
     docker cp service_ext/jenkins/plugins.txt jenkins:/usr/share/jenkins/plugins.txt
     docker exec jenkins /usr/local/bin/plugins.sh /usr/share/jenkins/plugins.txt
-    docker exec  jenkins curl -X POST -u ${INITIAL_ADMIN_USER}:${INITIAL_ADMIN_PASSWORD} http://localhost:8080/jenkins/restart
+    #docker exec  jenkins curl -X POST -u ${INITIAL_ADMIN_USER}:${INITIAL_ADMIN_PASSWORD} http://localhost:8080/jenkins/restart
 fi
 
 
