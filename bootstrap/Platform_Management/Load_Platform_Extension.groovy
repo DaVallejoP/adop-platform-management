@@ -35,6 +35,7 @@ loadPlatformExtensionJob.with{
     wrappers {
       preBuildCleanup()
       injectPasswords()
+      environmentVariables()
       maskPasswords()
       sshAgent("adop-jenkins-master")
       credentialsBinding {
