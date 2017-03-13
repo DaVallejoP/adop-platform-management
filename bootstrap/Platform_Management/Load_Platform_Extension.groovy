@@ -11,6 +11,7 @@ loadPlatformExtensionJob.with{
     wrappers {
         preBuildCleanup()
         sshAgent('adop-jenkins-master')
+        environmentVariables()
     }
     parameters{
       stringParam("GIT_URL",'',"The URL of the git repo for Platform Extension")
